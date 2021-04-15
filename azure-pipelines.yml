@@ -34,26 +34,48 @@ stages:
         projects: '$(Build.SourcesDirectory)\netcoreWebapi'
 
     - task: CmdLine@2
-      displayName: Analyze with Inspect
+      displayName: Analyze .Net core with NG SAST
       inputs:
         script: |
           $(Agent.HomeDirectory)\sl.exe analyze --app netcoreWebapi --tag branch=$(Build.SourceBranchName) --csharp --dotnet-core --cpg netcoreWebapi/netcoreWebapi.csproj
         workingDirectory: '$(Build.SourcesDirectory)'
       env:
-        SHIFTLEFT_ORG_ID: $(SHIFTLEFT_ORG_ID)
         SHIFTLEFT_ACCESS_TOKEN: $(SHIFTLEFT_ACCESS_TOKEN)
 
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.8'
+        addToPath: true
+        architecture: 'x64'
+
+    - task: CmdLine@2
+      displayName: Convert reports to SARIF
+      inputs:
+        script: |
+          pip install shiftleft-scan-reports
+          slreporter -a netcoreWebapi --branch $(Build.SourceBranchName) -o $(Build.ArtifactStagingDirectory)/CodeAnalysisLogs
+        workingDirectory: '$(Build.SourcesDirectory)'
+      env:
+        SHIFTLEFT_ACCESS_TOKEN: $(SHIFTLEFT_ACCESS_TOKEN)
+        WORKSPACE: https://github.com/HooliCorp/shiftleft-csharp-example/tree/$(Build.SourceVersion)/netcoreWebapi
+
+    - task: PublishBuildArtifacts@1
+      displayName: "Publish analysis logs"
+      inputs:
+        PathtoPublish: "$(Build.ArtifactStagingDirectory)/CodeAnalysisLogs"
+        ArtifactName: "CodeAnalysisLogs"
+        publishLocation: "Container"
+        
     - task: MSBuild@1
       inputs:
         solution: '$(Build.SourcesDirectory)/netfwWebapi/*.sln'
         msbuildVersion: '16.0'
 
     - task: CmdLine@2
-      displayName: Analyze with Inspect
+      displayName: Analyze .Net framework with NG SAST
       inputs:
         script: |
           $(Agent.HomeDirectory)\sl.exe analyze --app netfwWebapi --tag branch=$(Build.SourceBranchName) --csharp --cpg netfwWebapi/netfwWebapi.sln
         workingDirectory: '$(Build.SourcesDirectory)'
       env:
-        SHIFTLEFT_ORG_ID: $(SHIFTLEFT_ORG_ID)
         SHIFTLEFT_ACCESS_TOKEN: $(SHIFTLEFT_ACCESS_TOKEN)
