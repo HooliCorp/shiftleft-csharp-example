@@ -28,31 +28,16 @@ stages:
           Expand-Archive -Path $(Agent.HomeDirectory)\sl.zip -DestinationPath $(Agent.HomeDirectory)\
 
     - task: DotNetCoreCLI@2
-      displayName: Build console app
-      inputs:
-        command: 'build'
-        projects: '$(Build.SourcesDirectory)\netcoreConsole'
-    - task: CmdLine@2
-      displayName: Analyze with Inspect
-      inputs:
-        script: |
-          $(Agent.HomeDirectory)\sl.exe analyze --force --app netcoreConsole --tag branch=$(Build.SourceBranchName) --csharp --dotnet-core --cpg netcoreConsole/netcoreConsole/netcoreConsole.csproj
-        workingDirectory: '$(Build.SourcesDirectory)'
-      env:
-        SHIFTLEFT_ORG_ID: $(SHIFTLEFT_ORG_ID)
-        SHIFTLEFT_ACCESS_TOKEN: $(SHIFTLEFT_ACCESS_TOKEN)
-
-    - task: DotNetCoreCLI@2
       displayName: Build web api
       inputs:
-        command: 'build'
+        command: 'restore'
         projects: '$(Build.SourcesDirectory)\netcoreWebapi'
 
     - task: CmdLine@2
       displayName: Analyze with Inspect
       inputs:
         script: |
-          $(Agent.HomeDirectory)\sl.exe analyze --force --app netcoreWebapi --tag branch=$(Build.SourceBranchName) --csharp --dotnet-core --cpg netcoreWebapi/netcoreWebapi.csproj
+          $(Agent.HomeDirectory)\sl.exe analyze --app netcoreWebapi --tag branch=$(Build.SourceBranchName) --csharp --dotnet-core --cpg netcoreWebapi/netcoreWebapi.csproj
         workingDirectory: '$(Build.SourcesDirectory)'
       env:
         SHIFTLEFT_ORG_ID: $(SHIFTLEFT_ORG_ID)
@@ -67,7 +52,7 @@ stages:
       displayName: Analyze with Inspect
       inputs:
         script: |
-          $(Agent.HomeDirectory)\sl.exe analyze --force --app netfwWebapi --tag branch=$(Build.SourceBranchName) --csharp --cpg netfwWebapi/netfwWebapi.sln
+          $(Agent.HomeDirectory)\sl.exe analyze --app netfwWebapi --tag branch=$(Build.SourceBranchName) --csharp --cpg netfwWebapi/netfwWebapi.sln
         workingDirectory: '$(Build.SourcesDirectory)'
       env:
         SHIFTLEFT_ORG_ID: $(SHIFTLEFT_ORG_ID)
