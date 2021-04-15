@@ -10,10 +10,10 @@ pool:
 
 stages:
 - stage: Builders
-  displayName: Build sample applications
+  displayName: ShiftLeft NG SAST
   jobs:
   - job: Build
-    displayName: Build .Net and .Net core apps
+    displayName: Scan .Net and .Net core apps
     pool:
       vmImage: 'windows-latest'
     steps:
@@ -28,7 +28,7 @@ stages:
           Expand-Archive -Path $(Agent.HomeDirectory)\sl.zip -DestinationPath $(Agent.HomeDirectory)\
 
     - task: DotNetCoreCLI@2
-      displayName: Build web api
+      displayName: Restore web api
       inputs:
         command: 'restore'
         projects: '$(Build.SourcesDirectory)\netcoreWebapi'
@@ -54,6 +54,7 @@ stages:
         script: |
           pip install shiftleft-scan-reports
           slreporter -a netcoreWebapi --branch $(Build.SourceBranchName) -o $(Build.ArtifactStagingDirectory)/CodeAnalysisLogs
+          echo "Install the Security Scan extension from https://marketplace.visualstudio.com/items?itemName=shiftleftsecurity.sl-scan-results to view this report"
         workingDirectory: '$(Build.SourcesDirectory)'
       env:
         SHIFTLEFT_ACCESS_TOKEN: $(SHIFTLEFT_ACCESS_TOKEN)
