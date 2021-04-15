@@ -10,10 +10,10 @@ pool:
 
 stages:
 - stage: Builders
-  displayName: Build sample applications
+  displayName: ShiftLeft NG SAST
   jobs:
   - job: Build
-    displayName: Build .Net and .Net core apps
+    displayName: Scan .Net and .Net core apps
     pool:
       vmImage: 'windows-latest'
     steps:
@@ -28,47 +28,55 @@ stages:
           Expand-Archive -Path $(Agent.HomeDirectory)\sl.zip -DestinationPath $(Agent.HomeDirectory)\
 
     - task: DotNetCoreCLI@2
-      displayName: Build console app
+      displayName: Restore web api
       inputs:
-        command: 'build'
-        projects: '$(Build.SourcesDirectory)\netcoreConsole'
-    - task: CmdLine@2
-      displayName: Analyze with Inspect
-      inputs:
-        script: |
-          $(Agent.HomeDirectory)\sl.exe analyze --force --app netcoreConsole --tag branch=$(Build.SourceBranchName) --csharp --dotnet-core --cpg netcoreConsole/netcoreConsole/netcoreConsole.csproj
-        workingDirectory: '$(Build.SourcesDirectory)'
-      env:
-        SHIFTLEFT_ORG_ID: $(SHIFTLEFT_ORG_ID)
-        SHIFTLEFT_ACCESS_TOKEN: $(SHIFTLEFT_ACCESS_TOKEN)
-
-    - task: DotNetCoreCLI@2
-      displayName: Build web api
-      inputs:
-        command: 'build'
+        command: 'restore'
         projects: '$(Build.SourcesDirectory)\netcoreWebapi'
 
     - task: CmdLine@2
-      displayName: Analyze with Inspect
+      displayName: Analyze .Net core with NG SAST
       inputs:
         script: |
-          $(Agent.HomeDirectory)\sl.exe analyze --force --app netcoreWebapi --tag branch=$(Build.SourceBranchName) --csharp --dotnet-core --cpg netcoreWebapi/netcoreWebapi.csproj
+          $(Agent.HomeDirectory)\sl.exe analyze --wait --app netcoreWebapi --tag branch=$(Build.SourceBranchName) --csharp --dotnet-core --cpg netcoreWebapi/netcoreWebapi.csproj
         workingDirectory: '$(Build.SourcesDirectory)'
       env:
-        SHIFTLEFT_ORG_ID: $(SHIFTLEFT_ORG_ID)
         SHIFTLEFT_ACCESS_TOKEN: $(SHIFTLEFT_ACCESS_TOKEN)
 
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.8'
+        addToPath: true
+        architecture: 'x64'
+
+    - task: CmdLine@2
+      displayName: Convert reports to SARIF
+      inputs:
+        script: |
+          pip install shiftleft-scan-reports
+          slreporter -a netcoreWebapi --branch $(Build.SourceBranchName) -o $(Build.ArtifactStagingDirectory)/CodeAnalysisLogs
+          echo "Install the Security Scan extension from https://marketplace.visualstudio.com/items?itemName=shiftleftsecurity.sl-scan-results to view this report"
+        workingDirectory: '$(Build.SourcesDirectory)'
+      env:
+        SHIFTLEFT_ACCESS_TOKEN: $(SHIFTLEFT_ACCESS_TOKEN)
+        WORKSPACE: https://github.com/HooliCorp/shiftleft-csharp-example/tree/$(Build.SourceVersion)/netcoreWebapi
+
+    - task: PublishBuildArtifacts@1
+      displayName: "Publish analysis logs"
+      inputs:
+        PathtoPublish: "$(Build.ArtifactStagingDirectory)/CodeAnalysisLogs"
+        ArtifactName: "CodeAnalysisLogs"
+        publishLocation: "Container"
+        
     - task: MSBuild@1
       inputs:
         solution: '$(Build.SourcesDirectory)/netfwWebapi/*.sln'
         msbuildVersion: '16.0'
 
     - task: CmdLine@2
-      displayName: Analyze with Inspect
+      displayName: Analyze .Net framework with NG SAST
       inputs:
         script: |
-          $(Agent.HomeDirectory)\sl.exe analyze --force --app netfwWebapi --tag branch=$(Build.SourceBranchName) --csharp --cpg netfwWebapi/netfwWebapi.sln
+          $(Agent.HomeDirectory)\sl.exe analyze --wait --app netfwWebapi --tag branch=$(Build.SourceBranchName) --csharp --cpg netfwWebapi/netfwWebapi.sln
         workingDirectory: '$(Build.SourcesDirectory)'
       env:
-        SHIFTLEFT_ORG_ID: $(SHIFTLEFT_ORG_ID)
         SHIFTLEFT_ACCESS_TOKEN: $(SHIFTLEFT_ACCESS_TOKEN)
